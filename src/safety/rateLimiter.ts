@@ -12,7 +12,6 @@ interface RateLimitState {
 }
 
 const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
-  twitter: { maxRequests: 15, windowMs: 15 * 60 * 1000 },      // 15 per 15min
   reddit: { maxRequests: 60, windowMs: 60 * 1000 },             // 60 per min
   dexscreener: { maxRequests: 30, windowMs: 60 * 1000 },        // 30 per min
   pumpfun: { maxRequests: 20, windowMs: 60 * 1000 },            // 20 per min
@@ -22,6 +21,9 @@ const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
   goplus: { maxRequests: 30, windowMs: 60 * 1000 },             // 30 per min
   heliusws: { maxRequests: 100, windowMs: 60 * 1000 },          // 100 per min
   pumpfunlaunch: { maxRequests: 10, windowMs: 60 * 1000 },      // 10 per min
+  dexscreenertrending: { maxRequests: 30, windowMs: 60 * 1000 }, // 30 per min
+  jupitertrending: { maxRequests: 20, windowMs: 60 * 1000 },    // 20 per min
+  telegram: { maxRequests: 30, windowMs: 60 * 1000 },           // 30 per min
 };
 
 class RateLimiter {

@@ -4,6 +4,8 @@ import { DexToken } from './dexscreenerScanner';
 import { MajorTrend } from '../trends/trendAggregator';
 import { logger } from '../utils/logger';
 
+export type AlertSource = 'trend' | 'launch_monitor' | 'smart_money' | 'dex_trending' | 'jupiter_trending' | 'telegram' | 'graduation';
+
 export interface CandidateToken {
   mintAddress: string;
   name: string;
@@ -13,6 +15,7 @@ export interface CandidateToken {
   matchScore: number; // 0-1, how closely it matches the trend
   pumpfunData?: PumpfunToken;
   dexData?: DexToken;
+  alertSource?: AlertSource;
 }
 
 interface FuseItem {

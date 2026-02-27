@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
-    "scan": "ts-node src/index.ts"
+    "scan": "ts-node src/index.ts",
+    "telegram-auth": "ts-node src/auth/telegramAuth.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.3.8",
@@ -17,6 +18,7 @@
     "dotenv": "^16.3.0",
     "fuse.js": "^7.0.0",
     "google-trends-api": "^4.9.2",
+    "telegram": "^2.26.22",
     "winston": "^3.11.0",
     "ws": "^8.19.0"
   },

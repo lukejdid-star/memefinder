@@ -40,6 +40,17 @@ export function sendAlert(token: TokenScore, safe: boolean): void {
   const pumpfunUrl = `https://pump.fun/coin/${token.mintAddress}`;
   const dexscreenerUrl = `https://dexscreener.com/solana/${token.mintAddress}`;
 
+  const sourceLabels: Record<string, string> = {
+    trend: 'Trend Scanner',
+    launch_monitor: 'Launch Monitor',
+    smart_money: 'Smart Money',
+    dex_trending: 'DexScreener Trending',
+    jupiter_trending: 'Jupiter Trending',
+    telegram: 'Telegram Monitor',
+    graduation: 'Graduation Detected',
+  };
+  const sourceLabel = sourceLabels[token.alertSource] || 'Unknown';
+
   const alertLines = [
     '',
     '============================================',
@@ -47,7 +58,8 @@ export function sendAlert(token: TokenScore, safe: boolean): void {
     '============================================',
     `  Name:      ${token.name}`,
     `  Symbol:    $${token.symbol}`,
-    `  Trend:     "${token.trendKeyword}"`,
+    `  Source:    ${sourceLabel}`,
+    `  Trend:     "${token.trendKeyword || 'N/A'}"`,
     '',
     `  CA: ${token.mintAddress}`,
     '',
@@ -55,26 +67,30 @@ export function sendAlert(token: TokenScore, safe: boolean): void {
     `  Safety:    ${safetyTag}`,
     '',
     '  --- Score Breakdown ---',
-    `  Social CA Mentions:  ${token.socialCAMentions.toFixed(1)}`,
+    `  Buyers (1h):         ${token.socialCAMentions.toFixed(1)}`,
     `  Pump.fun Engagement: ${token.pumpfunEngagement.toFixed(1)}`,
     `  On-chain Health:     ${token.onchainHealth.toFixed(1)}`,
     `  Trend Alignment:     ${token.trendAlignment.toFixed(1)}`,
     `  Safety Score:        ${token.safetyScore.toFixed(1)}`,
+    `  Smart Money:         ${token.smartMoneyScore.toFixed(1)}`,
     '',
     '  --- Details ---',
-    `  CA Mentions:     ${token.details.caMentionCount}`,
+    `  Buyers (1h):     ${token.details.caMentionCount}`,
     `  Holders:         ${token.details.holderCount}`,
     `  Top 10 Conc:     ${(token.details.top10Concentration * 100).toFixed(1)}%`,
     `  Buy Ratio:       ${(token.details.buyRatio * 100).toFixed(1)}%`,
     `  Bonding Curve:   ${(token.details.bondingCurveProgress * 100).toFixed(1)}%`,
     `  Replies:         ${token.details.replyCount}`,
     `  Liquidity:       $${token.details.liquidityUsd.toLocaleString()}`,
+    token.details.smartMoneyWallets?.length
+      ? `  SM Wallets:    ${token.details.smartMoneyWallets.map(w => w.slice(0, 8) + '...').join(', ')}`
+      : '',
     '',
     `  Pump.fun:      ${pumpfunUrl}`,
     `  DexScreener:   ${dexscreenerUrl}`,
     '============================================',
     '',
-  ];
+  ].filter(Boolean);
 
   // Print to console with color
   const alertText = alertLines.join('\n');
@@ -85,6 +101,7 @@ export function sendAlert(token: TokenScore, safe: boolean): void {
     symbol: token.symbol,
     name: token.name,
     mintAddress: token.mintAddress,
+    source: token.alertSource,
     trend: token.trendKeyword,
     compositeScore: token.compositeScore,
     safe,
@@ -94,6 +111,7 @@ export function sendAlert(token: TokenScore, safe: boolean): void {
       onchain: token.onchainHealth,
       trend: token.trendAlignment,
       safety: token.safetyScore,
+      smartMoney: token.smartMoneyScore,
     },
     links: { pumpfun: pumpfunUrl, dexscreener: dexscreenerUrl },
   });

@@ -14,15 +14,15 @@ export interface RedditTrend {
 }
 
 const SUBREDDITS = [
-  'memes',
-  'dankmemes',
-  'MemeEconomy',
-  'CryptoCurrency',
+  'memecoin',
   'solana',
+  'CryptoCurrency',
+  'SolanaMemeCoins',
+  'pumpfun',
   'wallstreetbets',
 ];
 
-const MEME_SUBREDDITS = ['memes', 'dankmemes', 'MemeEconomy'];
+const CRYPTO_SUBREDDITS = ['memecoin', 'solana', 'SolanaMemeCoins', 'pumpfun'];
 
 export async function scanRedditTrends(): Promise<RedditTrend[]> {
   const allTrends: RedditTrend[] = [];
@@ -72,9 +72,9 @@ async function scanSubreddit(subreddit: string): Promise<RedditTrend[]> {
 
       const velocity = data.score / Math.max(ageHours, 0.1);
 
-      // For meme subreddits, need high velocity. For crypto subs, lower threshold.
-      const isMeme = MEME_SUBREDDITS.includes(subreddit);
-      const velocityThreshold = isMeme ? 500 : 100;
+      // For crypto subs, lower velocity threshold since communities are smaller
+      const isCrypto = CRYPTO_SUBREDDITS.includes(subreddit);
+      const velocityThreshold = isCrypto ? 50 : 100;
 
       if (velocity < velocityThreshold) continue;
 

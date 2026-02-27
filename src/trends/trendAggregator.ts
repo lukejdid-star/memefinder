@@ -1,6 +1,7 @@
-import { scanTwitterTrends, TwitterTrend } from './twitterScanner';
 import { scanRedditTrends, RedditTrend } from './redditScanner';
 import { scanGoogleTrends, GoogleTrend } from './googleTrends';
+import { scanDexScreenerTrending, DexScreenerTrendingResult } from './dexscreenerTrending';
+import { scanJupiterTrending, JupiterTrendingResult } from './jupiterTrending';
 import { TTLCache } from '../utils/cache';
 import { config } from '../config';
 import { logger } from '../utils/logger';
@@ -12,6 +13,7 @@ export interface MajorTrend {
   detectedAt: Date;
   sources: string[];
   velocity: number;
+  directMints?: string[];
 }
 
 // Cooldown cache to prevent re-triggering on the same meme
@@ -53,14 +55,33 @@ function isSameKeyword(a: string, b: string): boolean {
 }
 
 export async function getMajorTrends(): Promise<MajorTrend[]> {
-  // Scan all sources in parallel
-  const [twitterTrends, redditTrends, googleTrends] = await Promise.all([
-    scanTwitterTrends().catch(e => { logger.error('Twitter scan error', { error: e.message }); return [] as TwitterTrend[]; }),
+  // Build parallel scan list
+  const scanPromises: Promise<any>[] = [
     scanRedditTrends().catch(e => { logger.error('Reddit scan error', { error: e.message }); return [] as RedditTrend[]; }),
     scanGoogleTrends().catch(e => { logger.error('Google Trends error', { error: e.message }); return [] as GoogleTrend[]; }),
-  ]);
+  ];
 
-  // Normalize all trends into a common format
+  // DexScreener trending (enabled by default)
+  if (config.ENABLE_DEXSCREENER_TRENDING) {
+    scanPromises.push(
+      scanDexScreenerTrending().catch(e => { logger.error('DexScreener trending error', { error: e.message }); return [] as DexScreenerTrendingResult[]; }),
+    );
+  } else {
+    scanPromises.push(Promise.resolve([] as DexScreenerTrendingResult[]));
+  }
+
+  // Jupiter trending (enabled by default)
+  if (config.ENABLE_JUPITER_TRENDING) {
+    scanPromises.push(
+      scanJupiterTrending().catch(e => { logger.error('Jupiter trending error', { error: e.message }); return [] as JupiterTrendingResult[]; }),
+    );
+  } else {
+    scanPromises.push(Promise.resolve([] as JupiterTrendingResult[]));
+  }
+
+  const [redditTrends, googleTrends, dexTrending, jupiterTrending] = await Promise.all(scanPromises);
+
+  // Normalize keyword-based trends into a common format
   interface NormalizedTrend {
     keyword: string;
     source: string;
@@ -70,19 +91,8 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
 
   const normalized: NormalizedTrend[] = [];
 
-  // Twitter trends
-  for (const t of twitterTrends) {
-    const rawScore = Math.min(100, (t.velocity / 1000) * 10);
-    normalized.push({
-      keyword: t.keyword,
-      source: 'twitter',
-      velocity: t.velocity,
-      rawScore,
-    });
-  }
-
   // Reddit trends
-  for (const t of redditTrends) {
+  for (const t of redditTrends as RedditTrend[]) {
     const rawScore = Math.min(100, (t.velocity / 500) * 30 + (t.numComments / 100) * 20);
     normalized.push({
       keyword: t.keyword,
@@ -93,7 +103,7 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
   }
 
   // Google trends
-  for (const t of googleTrends) {
+  for (const t of googleTrends as GoogleTrend[]) {
     const rawScore = t.isBreakout ? 80 : Math.min(60, t.trafficVolume / 5000);
     normalized.push({
       keyword: t.keyword,
@@ -103,7 +113,44 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
     });
   }
 
-  // Group by keyword (fuzzy merge)
+  // --- Direct mint tokens from DexScreener/Jupiter trending ---
+  // These don't go through keyword matching — they provide mint addresses directly
+  const directMintMap = new Map<string, { name: string; symbol: string; score: number; sources: string[] }>();
+
+  for (const t of dexTrending as DexScreenerTrendingResult[]) {
+    const existing = directMintMap.get(t.mintAddress);
+    if (existing) {
+      existing.score = Math.max(existing.score, t.trendScore);
+      if (!existing.sources.includes('dexscreener')) existing.sources.push('dexscreener');
+    } else {
+      directMintMap.set(t.mintAddress, {
+        name: t.name,
+        symbol: t.symbol,
+        score: t.trendScore,
+        sources: ['dexscreener'],
+      });
+    }
+  }
+
+  for (const t of jupiterTrending as JupiterTrendingResult[]) {
+    const existing = directMintMap.get(t.mintAddress);
+    if (existing) {
+      existing.score = Math.max(existing.score, t.organicScore);
+      if (!existing.sources.includes('jupiter')) existing.sources.push('jupiter');
+      // Update name/symbol if we have better data from Jupiter
+      if (t.name) existing.name = t.name;
+      if (t.symbol) existing.symbol = t.symbol;
+    } else {
+      directMintMap.set(t.mintAddress, {
+        name: t.name,
+        symbol: t.symbol,
+        score: t.organicScore,
+        sources: ['jupiter'],
+      });
+    }
+  }
+
+  // Group keyword-based trends by keyword (fuzzy merge)
   const groups = new Map<string, NormalizedTrend[]>();
 
   for (const trend of normalized) {
@@ -120,7 +167,7 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
     }
   }
 
-  // Evaluate each group against qualification criteria
+  // Evaluate each keyword group against qualification criteria
   const majorTrends: MajorTrend[] = [];
 
   for (const [keyword, group] of groups) {
@@ -140,8 +187,24 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
       continue;
     }
 
+    // Cross-reference: if a keyword trend matches a direct token's name/symbol, attach the mint
+    const matchedMints: string[] = [];
+    for (const [mint, data] of directMintMap) {
+      const normalizedName = normalize(data.name);
+      const normalizedSymbol = normalize(data.symbol);
+      const normalizedKeyword = normalize(keyword);
+      if (
+        normalizedName.includes(normalizedKeyword) ||
+        normalizedSymbol.includes(normalizedKeyword) ||
+        normalizedKeyword.includes(normalizedName) ||
+        normalizedKeyword.includes(normalizedSymbol)
+      ) {
+        matchedMints.push(mint);
+      }
+    }
+
     // Compute composite trend score
-    const sourceBonus = sources.length * 15; // bonus for appearing on multiple platforms
+    const sourceBonus = sources.length * 15;
     const trendScore = Math.min(100, avgScore + sourceBonus);
 
     majorTrends.push({
@@ -151,14 +214,63 @@ export async function getMajorTrends(): Promise<MajorTrend[]> {
       detectedAt: new Date(),
       sources,
       velocity: maxVelocity,
+      directMints: matchedMints.length > 0 ? matchedMints : undefined,
     });
+  }
+
+  // Create direct-mint trends for tokens found on DexScreener/Jupiter but not matched to keywords
+  // These become their own "trends" with directMints
+  const usedMints = new Set<string>();
+  for (const trend of majorTrends) {
+    if (trend.directMints) {
+      trend.directMints.forEach(m => usedMints.add(m));
+    }
+  }
+
+  // Group direct mints by source combination and batch them
+  const unmatched: string[] = [];
+  for (const [mint] of directMintMap) {
+    if (!usedMints.has(mint)) {
+      unmatched.push(mint);
+    }
+  }
+
+  if (unmatched.length > 0) {
+    // Check cooldown for direct mint "trend"
+    const cooldownKey = 'direct_trending';
+    if (!cooldownCache.has(cooldownKey)) {
+      // Compute average score across unmatched direct tokens
+      let totalScore = 0;
+      const allSources = new Set<string>();
+      for (const mint of unmatched) {
+        const data = directMintMap.get(mint)!;
+        totalScore += data.score;
+        data.sources.forEach(s => allSources.add(s));
+      }
+      const avgScore = totalScore / unmatched.length;
+
+      majorTrends.push({
+        keyword: 'Trending Tokens',
+        aliases: [],
+        trendScore: Math.min(100, avgScore),
+        detectedAt: new Date(),
+        sources: [...allSources],
+        velocity: unmatched.length * 100,
+        directMints: unmatched,
+      });
+    }
   }
 
   // Sort by score descending
   majorTrends.sort((a, b) => b.trendScore - a.trendScore);
 
   logger.info(`Trend aggregator: ${majorTrends.length} MAJOR trends qualified`, {
-    trends: majorTrends.map(t => ({ keyword: t.keyword, score: t.trendScore, sources: t.sources })),
+    trends: majorTrends.map(t => ({
+      keyword: t.keyword,
+      score: t.trendScore,
+      sources: t.sources,
+      directMints: t.directMints?.length || 0,
+    })),
   });
 
   return majorTrends;

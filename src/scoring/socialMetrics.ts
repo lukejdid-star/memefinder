@@ -1,50 +1,60 @@
-import { searchCAMentions } from '../trends/twitterScanner';
+import { DexToken } from '../tokens/dexscreenerScanner';
+import { getCAMentionCount } from '../utils/telegramCounts';
 import { logger } from '../utils/logger';
 
 export interface SocialScore {
-  caMentionCount: number;
-  uniqueAuthors: number;
-  qualityRatio: number; // fraction of mentions from non-bot accounts
-  composite: number;    // 0-100
+  caMentionCount: number;   // now represents buyer count (1h)
+  uniqueAuthors: number;    // buy/sell ratio bonus
+  qualityRatio: number;     // telegram mention bonus ratio
+  composite: number;        // 0-100
 }
 
-export async function scoreSocialCA(mintAddress: string): Promise<SocialScore> {
-  // Search Twitter for the exact contract address
-  const twitterResult = await searchCAMentions(mintAddress);
+export async function scoreSocialCA(mintAddress: string, dexData?: DexToken): Promise<SocialScore> {
+  // --- Buyer velocity from DexScreener txCountH1 ---
+  const buys = dexData?.txCountH1?.buys || 0;
+  const sells = dexData?.txCountH1?.sells || 0;
 
-  const caMentionCount = twitterResult.count;
-  const uniqueAuthors = twitterResult.uniqueAuthors;
-  const qualityRatio = twitterResult.qualityRatio;
+  // Scale buyer count: 0-100
+  // 0 buys = 0, 50 buys = 50, 100+ buys = 100
+  let buyerScore: number;
+  if (buys >= 100) buyerScore = 100;
+  else if (buys >= 50) buyerScore = 50 + (buys - 50) / 50 * 50;
+  else buyerScore = buys;
 
-  // Compute composite score
-  // CA mentions are THE most powerful signal
-  let mentionScore: number;
-  if (caMentionCount >= 50) mentionScore = 100;
-  else if (caMentionCount >= 30) mentionScore = 80 + (caMentionCount - 30) / 20 * 20;
-  else if (caMentionCount >= 15) mentionScore = 60 + (caMentionCount - 15) / 15 * 20;
-  else if (caMentionCount >= 5) mentionScore = 30 + (caMentionCount - 5) / 10 * 30;
-  else mentionScore = caMentionCount * 6;
+  // --- Buy/sell ratio bonus (up to +20) ---
+  let ratioBonus = 0;
+  const totalTxns = buys + sells;
+  if (totalTxns > 0) {
+    const buyRatio = buys / totalTxns;
+    // >70% buys = full bonus, 50% = no bonus, <50% = 0
+    if (buyRatio > 0.5) {
+      ratioBonus = Math.min(20, (buyRatio - 0.5) * 100);
+    }
+  }
 
-  // Unique authors bonus: if many unique people are sharing, stronger signal
-  let authorBonus: number;
-  if (uniqueAuthors >= 20) authorBonus = 20;
-  else if (uniqueAuthors >= 10) authorBonus = 10 + (uniqueAuthors - 10) / 10 * 10;
-  else authorBonus = uniqueAuthors;
+  // --- Telegram CA mention bonus (up to +20) ---
+  const telegramMentions = getCAMentionCount(mintAddress);
+  const telegramBonus = Math.min(20, telegramMentions * 4); // 5 mentions = max bonus
 
-  // Quality penalty: if most mentions are from bot-like accounts, discount
-  const qualityMultiplier = 0.5 + qualityRatio * 0.5; // Range 0.5-1.0
-
-  const rawScore = mentionScore + authorBonus;
-  const composite = Math.min(100, rawScore * qualityMultiplier);
+  const composite = Math.min(100, buyerScore + ratioBonus + telegramBonus);
 
   const result: SocialScore = {
-    caMentionCount,
-    uniqueAuthors,
-    qualityRatio,
+    caMentionCount: buys,
+    uniqueAuthors: Math.round(ratioBonus),
+    qualityRatio: telegramMentions > 0 ? 1 : 0,
     composite,
   };
 
-  logger.debug('Social CA score', { mint: mintAddress, ...result });
+  logger.debug('Social score (buyers)', {
+    mint: mintAddress,
+    buys,
+    sells,
+    buyerScore: buyerScore.toFixed(1),
+    ratioBonus: ratioBonus.toFixed(1),
+    telegramMentions,
+    telegramBonus: telegramBonus.toFixed(1),
+    composite: composite.toFixed(1),
+  });
 
   return result;
 }

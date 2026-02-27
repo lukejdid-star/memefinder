@@ -12,9 +12,6 @@ export const config = {
   SOLANA_RPC_URL: envOrDefault('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com'),
   HELIUS_API_KEY: heliusKey,
 
-  // Twitter/X
-  TWITTER_BEARER_TOKEN: envOrDefault('TWITTER_BEARER_TOKEN', ''),
-
   // Alert thresholds
   MIN_SCORE_THRESHOLD: parseInt(envOrDefault('MIN_SCORE_THRESHOLD', '70'), 10),
   SCAN_INTERVAL_MS: parseInt(envOrDefault('SCAN_INTERVAL_MS', '30000'), 10),
@@ -59,6 +56,25 @@ export const config = {
 
   // GoPlus security API
   ENABLE_GOPLUS: envOrDefault('ENABLE_GOPLUS', 'false') === 'true',
+
+  // DexScreener trending
+  ENABLE_DEXSCREENER_TRENDING: envOrDefault('ENABLE_DEXSCREENER_TRENDING', 'true') === 'true',
+  DEXSCREENER_TRENDING_TIMEFRAME: envOrDefault('DEXSCREENER_TRENDING_TIMEFRAME', '1h'),
+
+  // Jupiter trending
+  ENABLE_JUPITER_TRENDING: envOrDefault('ENABLE_JUPITER_TRENDING', 'true') === 'true',
+  JUPITER_TRENDING_INTERVAL: envOrDefault('JUPITER_TRENDING_INTERVAL', '1h'),
+
+  // Graduation detection
+  ENABLE_GRADUATION_DETECTION: envOrDefault('ENABLE_GRADUATION_DETECTION', 'true') === 'true',
+
+  // Telegram monitoring
+  ENABLE_TELEGRAM: envOrDefault('ENABLE_TELEGRAM', 'false') === 'true',
+  TELEGRAM_API_ID: parseInt(envOrDefault('TELEGRAM_API_ID', '0'), 10),
+  TELEGRAM_API_HASH: envOrDefault('TELEGRAM_API_HASH', ''),
+  TELEGRAM_PHONE: envOrDefault('TELEGRAM_PHONE', ''),
+  TELEGRAM_SESSION: envOrDefault('TELEGRAM_SESSION', ''),
+  TELEGRAM_GROUP_IDS: envOrDefault('TELEGRAM_GROUP_IDS', '').split(',').map(s => s.trim()).filter(Boolean),
 
   // Helius WebSocket URL (derived from API key)
   HELIUS_WS_URL: heliusKey

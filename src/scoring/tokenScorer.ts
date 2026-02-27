@@ -1,4 +1,5 @@
-import { CandidateToken } from '../tokens/tokenMatcher';
+import { CandidateToken, AlertSource } from '../tokens/tokenMatcher';
+import { getSmartMoneyWallets } from './smartMoneySignals';
 import { scorePumpfunEngagement } from './pumpfunMetrics';
 import { scoreSocialCA } from './socialMetrics';
 import { scoreOnchain } from './onchainMetrics';
@@ -22,6 +23,8 @@ export interface TokenScore {
 
   compositeScore: number;
 
+  alertSource: AlertSource;
+
   // Raw data for logging
   details: {
     caMentionCount: number;
@@ -34,6 +37,7 @@ export interface TokenScore {
     liquidityUsd: number;
     ageHours: number;
     timeMultiplier: number;
+    smartMoneyWallets?: string[];
   };
 }
 
@@ -107,7 +111,7 @@ async function scoreCandidate(candidate: CandidateToken): Promise<TokenScore | n
   try {
     // Run all scoring in parallel
     const [socialResult, pumpfunResult, onchainResult, safetyResult] = await Promise.all([
-      scoreSocialCA(candidate.mintAddress),
+      scoreSocialCA(candidate.mintAddress, candidate.dexData),
       scorePumpfunEngagement(candidate.mintAddress, candidate.pumpfunData),
       scoreOnchain(
         candidate.mintAddress,
@@ -155,6 +159,7 @@ async function scoreCandidate(candidate: CandidateToken): Promise<TokenScore | n
       safetyScore,
       smartMoneyScore: smartMoney,
       compositeScore,
+      alertSource: candidate.alertSource || 'trend',
       details: {
         caMentionCount: socialResult.caMentionCount,
         holderCount: onchainResult.holderCount,
@@ -166,6 +171,7 @@ async function scoreCandidate(candidate: CandidateToken): Promise<TokenScore | n
         liquidityUsd: onchainResult.liquidityUsd,
         ageHours: Math.round(ageHours * 10) / 10,
         timeMultiplier,
+        smartMoneyWallets: getSmartMoneyWallets(candidate.mintAddress),
       },
     };
   } catch (error: any) {

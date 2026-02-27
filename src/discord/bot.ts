@@ -57,10 +57,37 @@ export async function sendTokenAlert(token: TokenScore, safe: boolean): Promise<
 
   const safetyTag = safe ? 'PASSED' : 'WARNING';
 
+  const sourceLabels: Record<string, string> = {
+    trend: 'Trend Scanner',
+    launch_monitor: 'Launch Monitor',
+    smart_money: 'Smart Money',
+    dex_trending: 'DexScreener Trending',
+    jupiter_trending: 'Jupiter Trending',
+    telegram: 'Telegram Monitor',
+    graduation: 'Graduation Detected',
+  };
+  const sourceEmojis: Record<string, string> = {
+    trend: '\uD83D\uDCCA',
+    launch_monitor: '\uD83D\uDE80',
+    smart_money: '\uD83D\uDC0B',
+    dex_trending: '\uD83D\uDD25',
+    jupiter_trending: '\u2604\uFE0F',
+    telegram: '\uD83D\uDCE1',
+    graduation: '\uD83C\uDF93',
+  };
+  const sourceLabel = sourceLabels[token.alertSource] || 'Unknown';
+  const sourceEmoji = sourceEmojis[token.alertSource] || '';
+
+  let description = `**${token.name}** ($${token.symbol})`;
+  description += `\nSource: ${sourceEmoji} ${sourceLabel}`;
+  if (token.trendKeyword) {
+    description += `\nTrend: "${token.trendKeyword}"`;
+  }
+
   const embed = new EmbedBuilder()
     .setTitle(`MEME TOKEN ALERT — $${token.symbol}`)
     .setColor(color)
-    .setDescription(`**${token.name}** ($${token.symbol})\nTrend: "${token.trendKeyword}"`)
+    .setDescription(description)
     .addFields(
       {
         name: 'Contract Address',
@@ -77,19 +104,25 @@ export async function sendTokenAlert(token: TokenScore, safe: boolean): Promise<
         inline: true,
       },
       {
+        name: 'Source',
+        value: `${sourceEmoji} ${sourceLabel}`,
+        inline: true,
+      },
+      {
         name: 'Score Breakdown',
         value: [
-          `Social CA Mentions: ${token.socialCAMentions.toFixed(1)}`,
+          `Buyers (1h): ${token.socialCAMentions.toFixed(1)}`,
           `Pump.fun Engagement: ${token.pumpfunEngagement.toFixed(1)}`,
           `On-chain Health: ${token.onchainHealth.toFixed(1)}`,
           `Trend Alignment: ${token.trendAlignment.toFixed(1)}`,
           `Safety Score: ${token.safetyScore.toFixed(1)}`,
+          `Smart Money: ${token.smartMoneyScore.toFixed(1)}`,
         ].join('\n'),
       },
       {
         name: 'Details',
         value: [
-          `CA Mentions: ${token.details.caMentionCount}`,
+          `Buyers (1h): ${token.details.caMentionCount}`,
           `Holders: ${token.details.holderCount}`,
           `Top 10 Conc: ${(token.details.top10Concentration * 100).toFixed(1)}%`,
           `Buy Ratio: ${(token.details.buyRatio * 100).toFixed(1)}%`,
@@ -102,8 +135,20 @@ export async function sendTokenAlert(token: TokenScore, safe: boolean): Promise<
         name: 'Links',
         value: `[Pump.fun](${pumpfunUrl}) | [DexScreener](${dexscreenerUrl})`,
       },
-    )
-    .setTimestamp();
+    );
+
+  // Add smart money wallet info if applicable
+  if (token.alertSource === 'smart_money' && token.details.smartMoneyWallets?.length) {
+    const walletLines = token.details.smartMoneyWallets.map(
+      w => `\`${w.slice(0, 8)}...${w.slice(-4)}\``
+    );
+    embed.addFields({
+      name: 'Smart Money Wallets',
+      value: walletLines.join('\n'),
+    });
+  }
+
+  embed.setTimestamp();
 
   try {
     await channel.send({ embeds: [embed] });

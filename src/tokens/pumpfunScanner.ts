@@ -92,7 +92,7 @@ async function searchPumpfun(query: string): Promise<PumpfunToken[]> {
   }
 }
 
-function parseBondingProgress(coin: any): number {
+export function parseBondingProgress(coin: any): number {
   // Bonding curve progress can come in different formats
   if (typeof coin.bonding_curve_progress === 'number') {
     return coin.bonding_curve_progress;

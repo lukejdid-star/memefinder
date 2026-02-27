@@ -179,6 +179,68 @@ async function checkCreatorHistory(mintAddress: string): Promise<boolean> {
   }
 }
 
+interface GoPlusResult {
+  flagged: boolean;
+  reasons: string[];
+}
+
+async function checkGoPlus(mintAddress: string): Promise<GoPlusResult> {
+  try {
+    await rateLimiter.waitForSlot('goplus');
+
+    const response = await axios.get(
+      'https://api.gopluslabs.com/api/v1/token_security/solana',
+      {
+        params: { contract_addresses: mintAddress },
+        timeout: 10_000,
+      },
+    );
+
+    rateLimiter.reportSuccess('goplus');
+
+    const tokenData = response.data?.result?.[mintAddress.toLowerCase()]
+      || response.data?.result?.[mintAddress]
+      || null;
+
+    if (!tokenData) {
+      return { flagged: false, reasons: [] };
+    }
+
+    const reasons: string[] = [];
+
+    if (tokenData.is_honeypot === '1') {
+      reasons.push('GoPlus: token flagged as honeypot');
+    }
+    if (tokenData.is_open_source === '0' && tokenData.is_proxy === '1') {
+      reasons.push('GoPlus: upgradeable proxy contract');
+    }
+    if (tokenData.can_take_back_ownership === '1') {
+      reasons.push('GoPlus: owner can reclaim ownership');
+    }
+    if (tokenData.owner_change_balance === '1') {
+      reasons.push('GoPlus: owner can change balances');
+    }
+    if (tokenData.hidden_owner === '1') {
+      reasons.push('GoPlus: hidden owner detected');
+    }
+    if (tokenData.selfdestruct === '1') {
+      reasons.push('GoPlus: contract can self-destruct');
+    }
+    if (tokenData.is_blacklisted === '1') {
+      reasons.push('GoPlus: token is blacklisted');
+    }
+    if (tokenData.transfer_pausable === '1') {
+      reasons.push('GoPlus: transfers can be paused');
+    }
+
+    return { flagged: reasons.length > 0, reasons };
+  } catch (error: any) {
+    rateLimiter.reportFailure('goplus', error?.response?.status);
+    logger.error('GoPlus check failed', { mint: mintAddress, error: error.message });
+    return { flagged: false, reasons: [] };
+  }
+}
+
 async function checkHoneypot(mintAddress: string): Promise<boolean> {
   // Simulate a sell by getting a Jupiter quote for selling the token
   // If Jupiter can't quote a sell, it might be a honeypot
