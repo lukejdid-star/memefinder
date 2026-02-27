@@ -1,0 +1,29 @@
+{
+  "name": "memefinder",
+  "version": "1.0.0",
+  "description": "Meme coin trend scanner — detects viral meme tokens on Solana and alerts with CAs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "scan": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.3.8",
+    "@solana/web3.js": "^1.87.0",
+    "axios": "^1.6.0",
+    "discord.js": "^14.25.1",
+    "dotenv": "^16.3.0",
+    "fuse.js": "^7.0.0",
+    "google-trends-api": "^4.9.2",
+    "winston": "^3.11.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  }
+}
