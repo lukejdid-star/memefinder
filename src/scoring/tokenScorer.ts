@@ -161,7 +161,7 @@ async function scoreCandidate(candidate: CandidateToken): Promise<TokenScore | n
       compositeScore,
       alertSource: candidate.alertSource || 'trend',
       details: {
-        caMentionCount: socialResult.caMentionCount,
+        caMentionCount: socialResult.buyerCount,
         holderCount: onchainResult.holderCount,
         top10Concentration: onchainResult.top10Concentration,
         buyRatio: onchainResult.buyRatio,

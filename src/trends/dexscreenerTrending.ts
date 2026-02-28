@@ -71,7 +71,7 @@ export async function scanDexScreenerTrending(): Promise<DexScreenerTrendingResu
         name: token.description || token.tokenAddress || '',
         symbol: token.tokenAddress?.slice(0, 6) || '',
         volume24h: 0,
-        trendScore: 50 + (token.amount || 0), // More boosts = higher score
+        trendScore: Math.min(100, 50 + (token.amount || 0)), // More boosts = higher score, capped at 100
         source: 'dexscreener_boosted',
       });
     }

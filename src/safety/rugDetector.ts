@@ -117,14 +117,13 @@ async function checkCreatorHistory(mintAddress: string): Promise<boolean> {
   try {
     await rateLimiter.waitForSlot('helius');
 
-    // Use Helius enhanced API to get transaction history
+    // Use Helius enhanced API to get transaction history for the mint address
     const response = await axios.get(
       `https://api.helius.xyz/v0/addresses/${mintAddress}/transactions`,
       {
         params: {
           'api-key': config.HELIUS_API_KEY,
           limit: 1,
-          type: 'NFT_MINT', // Will also catch SPL token creation
         },
         timeout: 10_000,
       },
@@ -158,8 +157,13 @@ async function checkCreatorHistory(mintAddress: string): Promise<boolean> {
     const recentCreations = (creatorTxs.data || []).filter((tx: any) => {
       const timestamp = tx.timestamp ? tx.timestamp * 1000 : 0;
       const within24h = Date.now() - timestamp < 24 * 60 * 60 * 1000;
-      // Look for token creation transactions
-      const isCreation = tx.type === 'TOKEN_MINT' || tx.description?.includes('create');
+      // Look for token creation transactions (Helius types for SPL token minting)
+      const isCreation =
+        tx.type === 'TOKEN_MINT' ||
+        tx.type === 'CREATE' ||
+        tx.type === 'INIT_MINT' ||
+        tx.description?.toLowerCase().includes('create') ||
+        tx.description?.toLowerCase().includes('mint');
       return within24h && isCreation;
     });
 

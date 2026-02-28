@@ -68,13 +68,12 @@ export async function startTelegramMonitor(): Promise<() => void> {
     groups: groupIds.length > 0 ? groupIds : 'all',
   });
 
-  return async () => {
-    try {
-      await client.disconnect();
+  return () => {
+    client.disconnect().then(() => {
       logger.info('Telegram monitor disconnected');
-    } catch {
+    }).catch(() => {
       // ignore disconnect errors
-    }
+    });
   };
 }
 
@@ -136,7 +135,7 @@ async function handleMessage(event: NewMessageEvent): Promise<void> {
     // Score and alert
     const scored = await scoreAll([candidate]);
     for (const token of scored) {
-      if (token.compositeScore < config.MIN_SCORE_THRESHOLD) break;
+      if (token.compositeScore < config.MIN_SCORE_THRESHOLD) continue;
       const safe = await isSafe(token.mintAddress);
       sendAlert(token, safe);
     }

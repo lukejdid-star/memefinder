@@ -3,10 +3,10 @@ import { getCAMentionCount } from '../utils/telegramCounts';
 import { logger } from '../utils/logger';
 
 export interface SocialScore {
-  caMentionCount: number;   // now represents buyer count (1h)
-  uniqueAuthors: number;    // buy/sell ratio bonus
-  qualityRatio: number;     // telegram mention bonus ratio
-  composite: number;        // 0-100
+  buyerCount: number;        // 1h buyer count from DexScreener
+  telegramMentions: number;  // CA mentions from Telegram
+  ratioBonus: number;        // buy/sell ratio bonus
+  composite: number;         // 0-100
 }
 
 export async function scoreSocialCA(mintAddress: string, dexData?: DexToken): Promise<SocialScore> {
@@ -39,9 +39,9 @@ export async function scoreSocialCA(mintAddress: string, dexData?: DexToken): Pr
   const composite = Math.min(100, buyerScore + ratioBonus + telegramBonus);
 
   const result: SocialScore = {
-    caMentionCount: buys,
-    uniqueAuthors: Math.round(ratioBonus),
-    qualityRatio: telegramMentions > 0 ? 1 : 0,
+    buyerCount: buys,
+    telegramMentions,
+    ratioBonus: Math.round(ratioBonus),
     composite,
   };
 

@@ -164,7 +164,7 @@ async function main(): Promise<void> {
   }
 
   if (config.ENABLE_TELEGRAM) {
-    stopTelegram = await startTelegramMonitor() as unknown as (() => void);
+    stopTelegram = await startTelegramMonitor();
   }
 
   // Main trend-based loop

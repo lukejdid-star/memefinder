@@ -18,7 +18,7 @@ export const config = {
 
   // Trend detection thresholds
   TREND_MIN_SOURCES: 2,
-  TREND_SINGLE_SOURCE_VELOCITY_THRESHOLD: 10000,
+  TREND_SINGLE_SOURCE_VELOCITY_THRESHOLD: 2000,
   TREND_COOLDOWN_MS: 6 * 60 * 60 * 1000, // 6 hours cooldown per meme
 
   // Scoring weights (rebalanced for smart money)
