@@ -105,7 +105,9 @@ async function checkMintAndFreeze(mintAddress: string): Promise<{
     };
   } catch (error: any) {
     rateLimiter.reportFailure('helius');
-    logger.error('Mint/freeze check failed', { mint: mintAddress, error: error.message });
+    if (!error.message?.includes('quota exhausted')) {
+      logger.error('Mint/freeze check failed', { mint: mintAddress, error: error.message });
+    }
     // Default to unsafe if we can't check
     return { mintAuthorityRevoked: false, freezeAuthorityRevoked: false };
   }
@@ -178,7 +180,9 @@ async function checkCreatorHistory(mintAddress: string): Promise<boolean> {
     return true;
   } catch (error: any) {
     rateLimiter.reportFailure('helius');
-    logger.error('Creator history check failed', { error: error.message });
+    if (!error.message?.includes('quota exhausted')) {
+      logger.error('Creator history check failed', { error: error.message });
+    }
     return true; // Default to safe if check fails
   }
 }

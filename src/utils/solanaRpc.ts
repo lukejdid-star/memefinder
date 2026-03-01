@@ -9,6 +9,7 @@ export function getConnection(commitment: Commitment = 'confirmed'): Connection 
     connection = new Connection(config.SOLANA_RPC_URL, {
       commitment,
       confirmTransactionInitialTimeout: 60_000,
+      disableRetryOnRateLimit: true,
     });
     logger.info('Solana RPC connection established', { url: config.SOLANA_RPC_URL.replace(/api-key=.*/, 'api-key=***') });
   }

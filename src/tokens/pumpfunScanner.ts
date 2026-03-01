@@ -17,7 +17,7 @@ export interface PumpfunToken {
   source: 'pumpfun';
 }
 
-const PUMPFUN_API_BASE = 'https://frontend-api.pump.fun';
+const PUMPFUN_API_BASE = 'https://frontend-api-v3.pump.fun';
 
 export async function findTokens(trend: MajorTrend): Promise<PumpfunToken[]> {
   const allTokens: PumpfunToken[] = [];

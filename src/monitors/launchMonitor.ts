@@ -9,8 +9,9 @@ import { getTokenByAddress } from '../tokens/dexscreenerScanner';
 import { scoreAll } from '../scoring/tokenScorer';
 import { isSafe } from '../safety/rugDetector';
 import { sendAlert } from '../alerts/alerter';
+import { logScoredTokens } from '../backtest/forwardTracker';
 
-const PUMPFUN_LATEST_URL = 'https://frontend-api.pump.fun/coins';
+const PUMPFUN_LATEST_URL = 'https://frontend-api-v3.pump.fun/coins';
 
 // Tokens seen in the last 30 minutes won't be reprocessed
 const seenTokens = new TTLCache<boolean>(30 * 60 * 1000);
@@ -133,6 +134,7 @@ async function pollLatestLaunches(): Promise<void> {
 
   // Run through scoring pipeline
   const scored = await scoreAll(candidates);
+  logScoredTokens(scored, candidates);
 
   for (const token of scored) {
     if (token.compositeScore < config.MIN_SCORE_THRESHOLD) break; // sorted descending
@@ -223,6 +225,7 @@ async function pollGraduatedTokens(): Promise<void> {
   }
 
   const scored = await scoreAll(candidates);
+  logScoredTokens(scored, candidates);
 
   for (const token of scored) {
     if (token.compositeScore < config.MIN_SCORE_THRESHOLD) break;

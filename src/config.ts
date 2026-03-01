@@ -9,7 +9,11 @@ const heliusKey = envOrDefault('HELIUS_API_KEY', '');
 
 export const config = {
   // Solana RPC (needed for on-chain safety checks)
-  SOLANA_RPC_URL: envOrDefault('SOLANA_RPC_URL', 'https://api.mainnet-beta.solana.com'),
+  // Use Helius RPC when API key is available — public RPC has extremely low rate limits
+  SOLANA_RPC_URL: envOrDefault('SOLANA_RPC_URL',
+    heliusKey
+      ? `https://mainnet.helius-rpc.com/?api-key=${heliusKey}`
+      : 'https://api.mainnet-beta.solana.com'),
   HELIUS_API_KEY: heliusKey,
 
   // Alert thresholds
@@ -75,6 +79,10 @@ export const config = {
   TELEGRAM_PHONE: envOrDefault('TELEGRAM_PHONE', ''),
   TELEGRAM_SESSION: envOrDefault('TELEGRAM_SESSION', ''),
   TELEGRAM_GROUP_IDS: envOrDefault('TELEGRAM_GROUP_IDS', '').split(',').map(s => s.trim()).filter(Boolean),
+
+  // Forward tracker (backtest outcome checking)
+  ENABLE_FORWARD_TRACKER: envOrDefault('ENABLE_FORWARD_TRACKER', 'false') === 'true',
+  FORWARD_TRACKER_CHECK_INTERVAL_MS: parseInt(envOrDefault('FORWARD_TRACKER_CHECK_INTERVAL_MS', '1800000'), 10),
 
   // Helius WebSocket URL (derived from API key)
   HELIUS_WS_URL: heliusKey

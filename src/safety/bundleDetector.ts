@@ -85,7 +85,9 @@ export async function checkBundleBuys(mintAddress: string): Promise<BundleCheckR
     return { isBundled, bundledSlots: bundledSlotCount, totalBundledSigners, reasons };
   } catch (error: any) {
     rateLimiter.reportFailure('helius');
-    logger.error('Bundle buy check failed', { mint: mintAddress, error: error.message });
+    if (!error.message?.includes('quota exhausted')) {
+      logger.error('Bundle buy check failed', { mint: mintAddress, error: error.message });
+    }
     // Graceful fallback — don't block on failure
     return { isBundled: false, bundledSlots: 0, totalBundledSigners: 0, reasons: [] };
   }

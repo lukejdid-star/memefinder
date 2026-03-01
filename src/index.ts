@@ -12,6 +12,7 @@ import { startLaunchMonitor } from './monitors/launchMonitor';
 import { startSmartMoneyTracker } from './monitors/smartMoneyTracker';
 import { startTelegramMonitor } from './monitors/telegramMonitor';
 import { getTokenByAddress } from './tokens/dexscreenerScanner';
+import { logScoredTokens, startOutcomeChecker } from './backtest/forwardTracker';
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -97,6 +98,9 @@ async function runCycle(): Promise<void> {
       // Step 3: Score all candidates
       const scored = await scoreAll(candidates);
 
+      // Log for forward tracker (before filtering by threshold)
+      logScoredTokens(scored, candidates);
+
       if (scored.length === 0) {
         logger.info(`No tokens passed scoring for "${trend.keyword}"`);
         continue;
@@ -128,6 +132,7 @@ async function runCycle(): Promise<void> {
 let stopLaunchMonitor: (() => void) | null = null;
 let stopSmartMoney: (() => void) | null = null;
 let stopTelegram: (() => void) | null = null;
+let stopForwardTracker: (() => void) | null = null;
 
 async function main(): Promise<void> {
   logger.info('===========================================');
@@ -141,6 +146,7 @@ async function main(): Promise<void> {
     launchMonitor: config.ENABLE_LAUNCH_MONITOR,
     smartMoney: config.ENABLE_SMART_MONEY,
     smartMoneyWallets: config.SMART_MONEY_WALLETS.length,
+    forwardTracker: config.ENABLE_FORWARD_TRACKER,
     dexscreenerTrending: config.ENABLE_DEXSCREENER_TRENDING,
     jupiterTrending: config.ENABLE_JUPITER_TRENDING,
     graduationDetection: config.ENABLE_GRADUATION_DETECTION,
@@ -167,6 +173,10 @@ async function main(): Promise<void> {
     stopTelegram = await startTelegramMonitor();
   }
 
+  if (config.ENABLE_FORWARD_TRACKER) {
+    stopForwardTracker = startOutcomeChecker();
+  }
+
   // Main trend-based loop
   while (true) {
     try {
@@ -186,6 +196,7 @@ function shutdown(): void {
   if (stopLaunchMonitor) stopLaunchMonitor();
   if (stopSmartMoney) stopSmartMoney();
   if (stopTelegram) stopTelegram();
+  if (stopForwardTracker) stopForwardTracker();
   process.exit(0);
 }
 

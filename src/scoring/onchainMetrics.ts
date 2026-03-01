@@ -123,6 +123,7 @@ async function getHolderDistribution(mintAddress: string): Promise<{
 
         holderCount = response.data?.result?.total || accounts.length;
       } catch {
+        rateLimiter.reportFailure('helius');
         // Fallback to largest accounts count
       }
     }
@@ -132,7 +133,9 @@ async function getHolderDistribution(mintAddress: string): Promise<{
     return { holderCount, top10Concentration };
   } catch (error: any) {
     rateLimiter.reportFailure('helius');
-    logger.error('Holder distribution fetch failed', { mint: mintAddress, error: error.message });
+    if (!error.message?.includes('quota exhausted')) {
+      logger.error('Holder distribution fetch failed', { mint: mintAddress, error: error.message });
+    }
     return { holderCount: 0, top10Concentration: 1 };
   }
 }
